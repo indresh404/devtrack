@@ -126,7 +126,7 @@ To deploy your own production instance, see the **[Self-Hosting Guide](./docs/se
 ```bash
 git clone https://github.com/Priyanshu-byte-coder/devtrack.git
 cd devtrack
-npm install
+pnpm install
 ```
 
 **2. Set up Supabase**
@@ -175,7 +175,7 @@ Fill in the environment variables. Below is a detailed description of each varia
 **5. Run locally**
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with GitHub. 🎉
@@ -232,7 +232,7 @@ DevTrack actively welcomes contributors of all skill levels, including **GSSoC 2
 1. **Browse** [open issues](https://github.com/Priyanshu-byte-coder/devtrack/issues) — start with the `good first issue` label
 2. **Comment** on the issue to get assigned before you start work
 3. **Fork → branch** (`feat/issue-42-description`) → **PR against `main`**
-4. **Check CI passes**: `npm run lint && npm run type-check`
+4. **Check CI passes**: `pnpm run lint && pnpm run type-check`
 
 See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for full guidelines, commit style, and the review process.
 
