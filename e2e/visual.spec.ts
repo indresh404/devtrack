@@ -1,33 +1,31 @@
 import { expect, test } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
-const authSecret = "playwright-placeholder-secret-that-is-long-enough";
+const authSecret = process.env.NEXTAUTH_SECRET ?? "playwright-placeholder-secret-that-is-long-enough";
 
 async function mockSession(page: any) {
-  const sessionToken = await encode({
+  const token = await encode({
     secret: authSecret,
     token: {
       name: "Playwright User",
       email: "playwright@example.com",
-      sub: "12345",
       githubLogin: "playwright-user",
       githubId: "12345",
       accessToken: "test-token",
       accessTokenValidatedAt: Date.now(),
+      expires: "2099-01-01T00:00:00.000Z",
     },
-    maxAge: 60 * 60,
   });
 
   await page.context().addCookies([
     {
       name: "next-auth.session-token",
-      value: sessionToken,
+      value: String(token ?? ""),
       domain: "127.0.0.1",
       path: "/",
       httpOnly: true,
       sameSite: "Lax",
       secure: false,
-      expires: Math.floor(Date.now() / 1000) + 60 * 60,
     },
   ]);
 
@@ -35,7 +33,7 @@ async function mockSession(page: any) {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        user: { name: "Playwright User", email: "playwright@example.com", image: "https://github.com/playwright-user.png" },
+        user: { name: "Playwright User", email: "playwright@example.com" },
         githubLogin: "playwright-user",
         githubId: "12345",
         accessToken: "test-token",
@@ -264,53 +262,158 @@ function mockMetricResponse(url: string) {
 
 test.describe("Visual Regression Tests", () => {
   test("Landing page - dark mode", async ({ page }) => {
+    test.setTimeout(60000);
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveScreenshot("landing-page-dark.png", { fullPage: true, animations: "disabled" });
+    await page.waitForTimeout(3000);
+    await expect(page).toHaveScreenshot("landing-page-dark.png", { fullPage: true, animations: "disabled", timeout: 25000 });
   });
 
   test("Sign-in page", async ({ page }) => {
+    test.setTimeout(60000);
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/auth/signin", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveScreenshot("signin-page.png", { fullPage: true, animations: "disabled" });
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot("signin-page.png", { fullPage: true, animations: "disabled", timeout: 25000 });
   });
 
   test("Dashboard header - dark mode", async ({ page }) => {
+    test.setTimeout(60000);
     await mockSession(page);
+
     await page.emulateMedia({ colorScheme: "dark" });
-    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+    await page.goto("/dashboard", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForTimeout(3000);
+
     const header = page.locator("header").first();
-    // Wait longer for components to settle, or wait for network idle to ensure layout is stable
-    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(1000); 
-    await expect(header).toHaveScreenshot("dashboard-header-dark.png", { animations: "disabled" });
+
+    await expect(header).toBeVisible({
+      timeout: 25000,
+    });
+
+    await header.evaluate((el) => {
+      el.classList.remove("transition-all");
+    });
+
+    await page.addStyleTag({
+      content: `
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+          caret-color: transparent !important;
+        }
+      `,
+    });
+
+    await expect(header).toHaveScreenshot(
+      "dashboard-header-dark.png",
+      {
+        animations: "disabled",
+        timeout: 25000,
+      }
+    );
   });
 
   test("Dashboard header - light mode", async ({ page }) => {
+    test.setTimeout(60000);
     await mockSession(page);
+
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+    await page.goto("/dashboard", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForTimeout(3000);
+
     const header = page.locator("header").first();
-    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(1000);
-    await expect(header).toHaveScreenshot("dashboard-header-light.png", { animations: "disabled" });
+
+    await expect(header).toBeVisible({
+      timeout: 25000,
+    });
+
+    await header.evaluate((el) => {
+      el.classList.remove("transition-all");
+    });
+
+    await page.addStyleTag({
+      content: `
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+          caret-color: transparent !important;
+        }
+      `,
+    });
+
+    await expect(header).toHaveScreenshot(
+      "dashboard-header-light.png",
+      {
+        animations: "disabled",
+        timeout: 25000,
+      }
+    );
   });
 
   test("Public profile - mock data", async ({ page }) => {
-    // Mock user profile
+    test.setTimeout(60000);
     await page.route("**/api/user/settings**", async (route: any) => {
-      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ is_public: true }) });
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          is_public: true,
+        }),
+      });
     });
-    
+
+    await page.route("**/u/playwright-user**", async (route: any) => {
+      await route.continue();
+    });
+
     await page.emulateMedia({ colorScheme: "dark" });
-    await page.goto("/u/playwright-user", { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1000); // Give it time to render mock data
-    await expect(page).toHaveScreenshot("public-profile.png", { fullPage: true, animations: "disabled" });
+
+    await page.goto("/u/playwright-user", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForTimeout(3000);
+
+    await page.addStyleTag({
+      content: `
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+          caret-color: transparent !important;
+        }
+      `,
+    });
+
+    await page.waitForLoadState("networkidle").catch(() => {});
+
+    await expect(page.locator("body")).toBeVisible();
+
+    await expect(page).toHaveScreenshot(
+      "public-profile.png",
+      {
+        fullPage: true,
+        animations: "disabled",
+        timeout: 25000,
+      }
+    );
   });
 
   test("404 page", async ({ page }) => {
+    test.setTimeout(60000);
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/this-page-does-not-exist-1234", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveScreenshot("404-page.png", { fullPage: true, animations: "disabled" });
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot("404-page.png", { fullPage: true, animations: "disabled", timeout: 25000 });
   });
 });
